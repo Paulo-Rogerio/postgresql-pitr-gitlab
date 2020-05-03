@@ -14,14 +14,16 @@ stages:
 
 production:
   stage: deploy
-  image: ubuntu:latest   
+  image: kroniak/ssh-client   
   tags:
     - docker 
   environment: production
   script:
-    - apt-get update && apt-get install openssh-client -y
-    - echo -n ${SSH_PRIVATE_KEY_POSTGRES} | base64 -d > /root/.ssh/id_rsa 
-    - chmod 0400 /root/.ssh/id_rsa
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - echo -n ${SSH_PRIVATE_KEY_POSTGRES} | base64 -d > ~/.ssh/id_rsa 
+    - chmod 0400 ~/.ssh/id_rsa
     - ssh postgres@${SERVIDOR} -p 20000 "mkdir -p ${DESTINO}"
     - rsync -avz -e "ssh -p 20000" --exclude '.git' . postgres@${SERVIDOR}:${DESTINO} 
     - ssh postgres@${SERVIDOR} -p 20000 "find ${ROOT_DIR} \( -type f -exec chmod 0640 {} \; \) , \( -type d -exec chmod 0750 {} \; \)"

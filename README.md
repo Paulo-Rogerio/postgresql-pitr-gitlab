@@ -63,19 +63,19 @@ hot_standby_feedback = on
 
 ```
 # replication privilege.
-local      replication     all                                     trust
-hostssl    replication     postgres        127.0.0.1/32            trust
-hostssl    replication     postgres        10.0.0.10/32            trust
-hostssl    replication     postgres        10.0.0.20/32            trust
-hostssl    replication     postgres        10.0.0.30/32            trust
-hostssl    replication     postgres        ::1/128                 trust
+local     replication     all                                     trust
+host      replication     postgres        127.0.0.1/32            trust
+host      replication     postgres        10.0.0.10/32            trust
+host      replication     postgres        10.0.0.20/32            trust
+host      replication     postgres        10.0.0.30/32            trust
+host      replication     postgres        ::1/128                 trust
 ```
 
 ### Archive.sh ( Produção )
 
 O script abaixo fará ```Log Flush``` no compartilhamento do NFS. Ele é capaz de checar se o NFS está acessível e caso o mesmo não esteja, um bot já pre-configurado, enviará uma notificação via telegram. 
 
-***Obs.: Substitua as viariáveis USERID e KEY para receber as notificações via Telegram. ***
+***Obs.: Substitua as viariáveis USERID e KEY para receber as notificações via Telegram.***
 
 ```bash
 #!/bin/bash
@@ -170,7 +170,6 @@ root@validacao:/# chown postgres. /opt/postgres_scripts/pgsql_timelines
 No servidor de Validação execute:
 
 ```bash
-root@validacao:/# touch 
 root@validacao:/# su - postgres
 postgres@validacao:/home/postgres$ ssh-keygen
 Generating public/private rsa key pair.
@@ -218,6 +217,8 @@ postgres@backup:/home/postgres$ echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCh/s
 
 ***Obs.: Substitua as viariáveis USERID e KEY  para receber as notificações via Telegram.*** 
 
+Essas credenciais estão declaradas no arquivo ```scripts/recupera_backup.sh```
+
 ```
 USERID="-MeuChatID"
 KEY="222222222:hfjyr8u5TGydydhddddUJGokTGERS%TGBDD"
@@ -229,7 +230,7 @@ KEY="222222222:hfjyr8u5TGydydhddddUJGokTGERS%TGBDD"
 
 - Copia o base backup definido para servidor de validação
 - Copia os arquivos e scripts necessários para rodar o processo de validação.
-- Envia uma mensagem notificando o termino.
+- Envia uma mensagem notificando o término do processo.
 
 ### Gerar chaves ( id_rsa e id_rsa.pub ) para Gitlab-ci comunicar com Servidor Validação.
 
@@ -260,7 +261,9 @@ The key's randomart image is:
 +----[SHA256]-----+
 ```
 
-No servidor de Validação, temos que autorizar que essa chave pública possa se conectar no servidor de validação , pois lá que a restauração PITR acontecerá. A chave privada deverá ser armazenada no próprio Gitlab. 
+No servidor de Validação, temos que autorizar que essa chave pública possa se conectar no servidor de validação , pois lá que a restauração PITR acontecerá. A chave privada deverá ser armazenada no próprio Gitlab que se encarregará de disponibiliza-la para uma imagem docker previamente declarada no arquivo ```.gitlab-ci.yml```. 
+
+Conectado no Servidor de Validação execute os seguintes passos:
 
 ```bash
 postgres@validacao:/home/postgres$ mkdir -p ~/.ssh/
@@ -278,10 +281,28 @@ Vamos gerar um arquivo base64 com o conteúdo da chave privada que criamos no pa
 paulo@minha_maquina:/home/paulo# cat /tmp/ssh/id_rsa | base64
 ```
 
-Copie o resultado do base64 para dentro do Gitlab.
+Copie o resultado do base64 para dentro do ***Gitlab*** -> ***CI/CD***. Nesta etapa , estou considerando que você tenha uma ***Gitlab Runner*** disponível para seu uso. 
+
+Caso não tenha um Runner próprio, vc pode usar um Runner compartilhado pelo próprio Gitlab. 
+
+![Shared Runner](https://i.ibb.co/g36tBqh/01-runner.jpg)
+
+O que vai mudar em usar um Runner compartilhado , é forma de usa-lo dentro do ```.gitlab-ci.yml``` 
+
+```yaml
+image: docker:stable
+
+services:
+  - docker:dind
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+``` 
+
+### Declarar variável no Gitlab.
 
 ![Declarar Variáveis no Gitlab](https://i.ibb.co/tLv1RLf/01-gitlab.jpg)
-
 
 ### Rodar pipeline.
 
