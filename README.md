@@ -38,6 +38,15 @@ Ex: ```/etc/fstab``` servidor Validação
 10.0.0.1:/nfs 	  /mnt/archivelogs	  nfs     ro,defaults
 ```
 
+Criar a estrutura de diretório após a unidade remota estar montada.
+
+```bash
+root@postgres:/# mkdir -p /mnt/archivelogs/10.3
+root@postgres:/# ln -svf /mnt/archivelogs/10.3 /mnt/archivelogs/release
+```
+
+***Obs.: Para evitar transtornos com Permissões em ambas as máquinas o UID e GID do usuário Postgres devem ser os mesmos.***
+
 ### Postgresql.conf ( Produção )
 
 ```
@@ -83,12 +92,12 @@ O script abaixo fará ```Log Flush``` no compartilhamento do NFS. Ele é capaz d
 p=$1
 f=$2
 CODE=1
-DIR="/mnt/archivelogs/10.0.0.30/release"
+DIR="/mnt/archivelogs/release"
 
 # Funcao Telegram
 telegram(){
-  USERID="-MeuChatID"
-  KEY="222222222:hfjyr8u5TGydydhddddUJGokTGERS%TGBDD"
+  USERID="ChatID"
+  KEY="Token"
   URL="https://api.telegram.org/bot${KEY}/sendMessage"
   DATA=$(date +%Y"/"%m"/"%d" "%H":"%M":"%S)
   MSG="/tmp/msg.txt"
@@ -111,8 +120,8 @@ then
         cp $p ${DIR}/$f
         CODE=$?
      else
-         # NFS está montado, mas não está acessível.
-         telegram
+        # NFS está montado, mas não está acessível.
+        telegram
      fi
 else
     # Unidade remota não está montada verificar NFS.
@@ -163,6 +172,8 @@ root@validacao:/# touch /var/log/postgres_restore_timeline.log
 root@validacao:/# chown postgres. /var/log/postgres_restore_timeline.log
 root@validacao:/# mkdir -p /opt/postgres_scripts/pgsql_timelines
 root@validacao:/# chown postgres. /opt/postgres_scripts/pgsql_timelines
+root@validacao:/# mkdir -p /dados/postgres/data/5433
+root@validacao:/# chown -R postgres. /dados
 ```
 
 ### Autorizando Servidor de Validação comunicar com Servidor de Backup
@@ -220,8 +231,8 @@ postgres@backup:/home/postgres$ echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCh/s
 Essas credenciais estão declaradas no arquivo ```scripts/recupera_backup.sh```
 
 ```
-USERID="-MeuChatID"
-KEY="222222222:hfjyr8u5TGydydhddddUJGokTGERS%TGBDD"
+USERID="MeuChatID"
+KEY="Token"
 ```
 
 ## 3ª Etapa - Configurando Pipeline Gitlab para executar Point In Time Recovery (PITR).
@@ -316,8 +327,13 @@ variables:
   TIMELINE_RESTORE: "2020-03-03 18:18:18"
   #============================================#
 ```
+![Pipeline de Deploy](https://i.ibb.co/Lx0jYRw/02-gitlab.jpg)
 
-### Acessando o Banco restaurado.
+Após o término do Pipeline, pode-se acompanhar o histórico de deploy que o projeto sofreu, no menu ***CI/CD*** -> ***PipeLines***
+
+![Histórico Pipelines](https://i.ibb.co/Rb0rvrC/03-gitlab.jpg)
+
+### Notificação se o Restore do Banco ocorreu com sucesso.
 
 ![Notificação via Telegram](https://i.ibb.co/HT19h66/01-telegram.jpg)
 
@@ -329,3 +345,22 @@ O banco ficará acessível na porta ***5433*** no servidor de Validação ***10.
 - recupera_backup.sh
 - restore_command.sh
 - pg_hba.conf
+
+### Logs do processo de restauração PITR
+
+Os logs podem ser acompanhados direto no ```Servidor de Validação```.
+
+```bash
+paulo@validacao:/home/paulo$ tail -f /var/log/postgres_restore_timeline.log
+
+2020-03-23-00:03:43 - Iniciando processo de recovery timeline Postgres - 20200220202020
+2020-03-23-00:03:48 - O serviço do PostgreSQL na porta 5433 foi parado com sucesso.
+2020-03-23-00:03:54 - Copiando o Full Backup 20200220202020
+2020-03-23-00:16:18 - Copiando os FILES personalizados - pg_hba.conf, postgresql.conf, recovery.conf
+2020-03-23-00:16:18 - Iniciando o Cluster em - Porta 5433
+2020-03-23-00:22:59 - Archives aplicados com sucesso
+2020-03-23-00:22:59 - Parando Postgres para renomear recovery.conf
+2020-03-23-00:23:06 - Archives foram aplicados com sucesso para restore do backup 20200220202020
+2020-03-23-00:23:06 - [SUCESSO]
+--------------------------------
+```
