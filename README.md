@@ -41,8 +41,8 @@ Ex: ```/etc/fstab``` servidor Validação
 Criar a estrutura de diretório após a unidade remota estar montada.
 
 ```bash
-root@postgres:/# mkdir -p /mnt/archivelogs/10.3
-root@postgres:/# ln -svf /mnt/archivelogs/10.3 /mnt/archivelogs/release
+postgres@postgres:/$ mkdir -p /mnt/archivelogs/10.3
+postgres@postgres:/$ ln -svf /mnt/archivelogs/10.3 /mnt/archivelogs/release
 ```
 
 ***Obs.: Para evitar transtornos com Permissões, em ambas as máquinas o UID e GID do usuário Postgres devem ser os mesmos.***
