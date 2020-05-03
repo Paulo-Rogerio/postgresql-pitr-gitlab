@@ -239,7 +239,7 @@ KEY="Token"
 
 ### Procedimentos feitos pelo pipeline:
 
-- Copia o base backup definido na variável ```.gitlab-ci.yml`` para Servidor de Validação.
+- Copia o base backup definido na variável ***.gitlab-ci.yml*** para Servidor de Validação.
 - Copia os arquivos e scripts necessários para rodar o processo de restore.
 - Envia uma mensagem notificando o término do processo.
 
