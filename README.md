@@ -4,7 +4,7 @@ Constantemente preciso voltar o estado do Banco até uma determinada Timeline pa
 
 ## Ferramentas Necessárias
 
-Para reproduzir esse tutoria em seu ambiente será necessário os seguintes produtos:
+Para reproduzir esse tutorial em seu ambiente será necessário os seguintes produtos:
 
 - Gitlab
 - Runner Docker - Gitlab
@@ -45,7 +45,7 @@ root@postgres:/# mkdir -p /mnt/archivelogs/10.3
 root@postgres:/# ln -svf /mnt/archivelogs/10.3 /mnt/archivelogs/release
 ```
 
-***Obs.: Para evitar transtornos com Permissões em ambas as máquinas o UID e GID do usuário Postgres devem ser os mesmos.***
+***Obs.: Para evitar transtornos com Permissões, em ambas as máquinas o UID e GID do usuário Postgres devem ser os mesmos.***
 
 ### Postgresql.conf ( Produção )
 
@@ -135,7 +135,7 @@ exit $CODE
 
 ***Servidor de Backup -> 10.0.0.40***
 
-Todo Backup é armazenado em um outro servidor chamado de ```Servidor de Backup```. Esse servidor que dispara e retém os backup produzidos pelo postgres. Ele possui uma rotina no cron para ser executado semanalmente.
+Todo Backup é armazenado em um outro servidor chamado de ```Servidor de Backup```, esse servidor que dispara e retém os backup produzidos pelo postgres. Ele possui uma rotina no cron para ser executado semanalmente.
 
 ```bash
 dir="/dados/backup/pgsql/$(date +%Y%m%d%H%M%S)"
@@ -154,7 +154,7 @@ drwx------ 18 postgres   postgres   4096 Apr 13 21:44 20200413202020
 
 ## 2ª Etapa - Configurando Servidores ( Comunicação entre servidores ).
 
-Agora precisamos permitir que as máquinas ***Servidor Backup -> 10.0.0.40*** e ***Servidor Validação -> 10.0.0.60*** possam se comunicar via SSH sem senha. Para isso, vamos gerar uma chave no servidor de Validação e autoriza-la no servidor de Backup, isso permitirá que quando o servidor de validação fazer um ```scp``` do base backup necessário para o servidor de validação isso possa acontecer de forma transparente.
+Agora precisamos permitir que as máquinas ***Servidor Backup -> 10.0.0.40*** e ***Servidor Validação -> 10.0.0.60*** possam se comunicar via SSH sem senha. Para isso, vamos gerar uma chave no ```Servidor de Validação``` e autoriza-la no ```Servidor de Backup```, isso permitirá que que o servidor de validação possa fazer um ```scp``` do base backup necessário de forma transparente.
 
 ### Permissoes especiais ( sudo )
 
@@ -171,7 +171,7 @@ postgres ALL=(ALL) NOPASSWD: /sbin/lsof
 root@validacao:/# touch /var/log/postgres_restore_timeline.log
 root@validacao:/# chown postgres. /var/log/postgres_restore_timeline.log
 root@validacao:/# mkdir -p /opt/postgres_scripts/pgsql_timelines
-root@validacao:/# chown postgres. /opt/postgres_scripts/pgsql_timelines
+root@validacao:/# chown postgres. /opt/postgres_scripts
 root@validacao:/# mkdir -p /dados/postgres/data/5433
 root@validacao:/# chown -R postgres. /dados
 ```
@@ -228,7 +228,7 @@ postgres@backup:/home/postgres$ echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCh/s
 
 ***Obs.: Substitua as viariáveis USERID e KEY  para receber as notificações via Telegram.*** 
 
-Essas credenciais estão declaradas no arquivo ```scripts/recupera_backup.sh```
+Essas credênciais estaram declaradas no arquivo ```scripts/recupera_backup.sh```
 
 ```
 USERID="MeuChatID"
@@ -237,15 +237,15 @@ KEY="Token"
 
 ## 3ª Etapa - Configurando Pipeline Gitlab para executar Point In Time Recovery (PITR).
 
-### Procedimentos feitos pelo pipeline
+### Procedimentos feitos pelo pipeline:
 
-- Copia o base backup definido para servidor de validação
-- Copia os arquivos e scripts necessários para rodar o processo de validação.
+- Copia o base backup definido na variável ```.gitlab-ci.yml`` para Servidor de Validação.
+- Copia os arquivos e scripts necessários para rodar o processo de restore.
 - Envia uma mensagem notificando o término do processo.
 
 ### Gerar chaves ( id_rsa e id_rsa.pub ) para Gitlab-ci comunicar com Servidor Validação.
 
-Gere uma chave aleatória que será utilizado para comunicação do container que executa o pipeline na máquina de validação.
+Gere um par de chave que será utilizado para comunicação do container que executa o pipeline e o ```Servidor de Validação```. Essa chave permitirá que o container faça ```SSH``` no ```Servidor de Validação``` sem precisar de senha.
 
 ```bash
 paulo@minha_maquina:/home/paulo# mkdir -p /tmp/ssh
@@ -272,7 +272,7 @@ The key's randomart image is:
 +----[SHA256]-----+
 ```
 
-No servidor de Validação, temos que autorizar que essa chave pública possa se conectar no servidor de validação , pois lá que a restauração PITR acontecerá. A chave privada deverá ser armazenada no próprio Gitlab que se encarregará de disponibiliza-la para uma imagem docker previamente declarada no arquivo ```.gitlab-ci.yml```. 
+No ```Servidor de Validação```, temos que autorizar que essa chave pública possa ser utilizada na conexão ***SSH***, pois lá que a restauração PITR acontecerá. A chave privada deverá ser armazenada no próprio Gitlab que se encarregará de disponibilizá-la para uma imagem docker na hora do deploy. Veja o ```.gitlab-ci.yml``` para entender melhor esse processos. 
 
 Conectado no Servidor de Validação execute os seguintes passos:
 
@@ -290,11 +290,19 @@ Vamos gerar um arquivo base64 com o conteúdo da chave privada que criamos no pa
 
 ```bash
 paulo@minha_maquina:/home/paulo# cat /tmp/ssh/id_rsa | base64
+
+LS0tLS1CRUdJTiBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0KYjNCbGJuTnphQzFyWlhrdGRqRUFBQUFBQkc1dm
+Vjc1M1ArcFR5TFV3Rk9ha1gKdUJ0RTlWV0VNUTVMRWw3QTdvQ0VEZ0tRMnJYWmhhdDN2ODJNZFpqREViVlB3cU
+...
+...
+...
+NSd3JSZnhUYVJhdkU2MnlRNEwKU2sxelh5VzlrWHdoaUs4QUFBQVhjR0YxYkc5QVRXRmpRbTl2YXkxUWNtOHVi
+Nhfd7fdJJHYGFT76rrwRzlqWVd3QkFnTUUKLS0tLik7S1FTkQgT1BFTlNTSCBQUklWQVRFIEtFWS0tLS0tCg==
 ```
 
 Copie o resultado do base64 para dentro do ***Gitlab*** -> ***CI/CD***. Nesta etapa , estou considerando que você tenha uma ***Gitlab Runner*** disponível para seu uso. 
 
-Caso não tenha um Runner próprio, vc pode usar um Runner compartilhado pelo próprio Gitlab. 
+Caso não tenha um Runner próprio vc pode usar um Runner público, compartilhado pelo próprio Gitlab. 
 
 ![Shared Runner](https://i.ibb.co/g36tBqh/01-runner.jpg)
 
@@ -317,7 +325,10 @@ variables:
 
 ### Rodar pipeline.
 
-Essa é a parta mais divertida, pois agora vamos disparar um gatilho para o ```Gitlab Runner``` executar o pipeline de Restore. Sempre que houver a necessidade de fazer um ( PITR ) deve-se editar o arquivo ```.gitlab-ci.yml``` e editar as suas váriáveis.
+Essa é a parta mais divertida, pois agora vamos disparar um gatilho para o ```Gitlab Runner``` executar o pipeline de Restore. Sempre que houver a necessidade de fazer um ( PITR ) deve-se editar o arquivo ```.gitlab-ci.yml``` e editar as suas váriáveis. Logo após :
+
+- git commit -am "Restaurando Backup 20200220202020"
+- git push
 
 ```yaml
 variables:
@@ -333,7 +344,7 @@ Após o término do Pipeline, pode-se acompanhar o histórico de deploy que o pr
 
 ![Histórico Pipelines](https://i.ibb.co/Rb0rvrC/03-gitlab.jpg)
 
-### Notificação se o Restore do Banco ocorreu com sucesso.
+### Recebendo notificação se o Restore do Banco ocorreu com sucesso.
 
 ![Notificação via Telegram](https://i.ibb.co/HT19h66/01-telegram.jpg)
 
