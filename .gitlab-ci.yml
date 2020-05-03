@@ -1,0 +1,33 @@
+variables:
+  #===== Dados do Backup a ser restaurado =====#
+  VERSAO_POSTGRES: "release"
+  ULTIMO_BACKUP: "20200220202020"
+  TIMELINE_RESTORE: "2020-03-03 18:18:18"
+  #============================================#
+  ROOT_DIR: "/opt/postgres_scripts"
+  ORIGEM: "/builds/shell-scripts/archives/pgsql-timelines"
+  DESTINO: "${ROOT_DIR}/pgsql_timelines"
+  SERVIDOR: "10.0.0.40"
+
+stages:
+  - deploy  
+
+production:
+  stage: deploy
+  image: ubuntu:latest   
+  tags:
+    - docker 
+  environment: production
+  script:
+    - apt-get update && apt-get install openssh-client -y
+    - echo -n ${SSH_PRIVATE_KEY_POSTGRES} | base64 -d > /root/.ssh/id_rsa 
+    - chmod 0400 /root/.ssh/id_rsa
+    - ssh postgres@${SERVIDOR} -p 20000 "mkdir -p ${DESTINO}"
+    - rsync -avz -e "ssh -p 20000" --exclude '.git' . postgres@${SERVIDOR}:${DESTINO} 
+    - ssh postgres@${SERVIDOR} -p 20000 "find ${ROOT_DIR} \( -type f -exec chmod 0640 {} \; \) , \( -type d -exec chmod 0750 {} \; \)"
+    - ssh postgres@${SERVIDOR} -p 20000 "find ${ROOT_DIR} -iname "*.sh" -type f -exec chmod +x {} \;"
+    - ssh postgres@${SERVIDOR} -p 20000 "sed -i \"s/TIMELINE_RESTORE/${TIMELINE_RESTORE}/\" ${DESTINO}/confs/recovery.conf"
+    - ssh postgres@${SERVIDOR} -p 20000 "sed -i \"s/VERSAO_POSTGRES/${VERSAO_POSTGRES}/\" ${DESTINO}/scripts/restore_command_timelines.sh"    
+    - ssh postgres@${SERVIDOR} -p 20000 'export VERSAO_POSTGRES='"${VERSAO_POSTGRES}"' && export ULTIMO_BACKUP='"${ULTIMO_BACKUP}"' && screen -d -m '"${DESTINO}"'/scripts/recupera_backup.sh &'
+  only:
+    - master    
